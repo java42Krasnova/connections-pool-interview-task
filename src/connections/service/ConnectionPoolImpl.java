@@ -1,6 +1,7 @@
 package connections.service;
 
 import java.util.HashMap;
+import java.util.Iterator;
 
 import connections.dto.Connection;
 
@@ -15,48 +16,75 @@ public class ConnectionPoolImpl implements ConnectionsPool {
 		}
 	}
 
-	private static class ConnectionsList {
+	private static class ConnectionsList implements Iterable{
+		private class ConnectionsListIterator implements Iterator{
+			Node currentNode = head;
+			
+			@Override
+			public boolean hasNext() {
+				
+				return currentNode != null;
+			}
+
+			@Override
+			public Integer next() {
+				int res = currentNode.connection.getId();
+				currentNode = currentNode.next;
+				return res;
+				
+			}
+			
+		}
 		Node head = null;
 		Node tail = null;
 
-		Node add(Connection connection) {
+		private void addNode(Connection connection) {
 			Node newNode = new Node(connection);
 			if (head == null) {
 				head = tail = newNode;
 			} else {
-				addNewConnection(newNode);
+				addHeadNode(newNode);
 			}
-			return newNode;
+			
 		}
 
-		private void addNewConnection(Node newNode) {
+		private void addHeadNode(Node newNode) {
 			newNode.prev = null;
 			newNode.next = head;
 			head.prev = newNode;
 			head = newNode;
 		}
 
-		public void changeLastActiveConnection(Node currentActiveConnectionNode) {
-			if (currentActiveConnectionNode != tail) {
-				removeConnectionNodeFromeCenter(currentActiveConnectionNode);
+		public void setNewHeadNode(Node currentNode) {
+			if (currentNode != tail) {
+				removeCenterNode(currentNode);
 			} else {
-				removeLongerUnusedConnectionFromList();
+				removeLastNode();
 			}
-			addNewConnection(currentActiveConnectionNode);
+			addHeadNode(currentNode);
 
 		}
 
-		private void removeLongerUnusedConnectionFromList() {
+		private void removeLastNode() {
 			tail = tail.prev;
 			tail.next = null;
 		}
 
-		private void removeConnectionNodeFromeCenter(Node currentActiveConnectionNode) {
+		private void removeCenterNode(Node currentActiveConnectionNode) {
 			Node beforReorder = currentActiveConnectionNode.prev;
 			Node afterReorder = currentActiveConnectionNode.next;
 			beforReorder.next = afterReorder;
 			afterReorder.prev = beforReorder;
 		}
+
+		@Override
+		public Iterator iterator() {
+			return new ConnectionsListIterator();
+		}
+
+		
+
+		
 	}
 
 	ConnectionsList list = new ConnectionsList();
@@ -74,11 +102,12 @@ public class ConnectionPoolImpl implements ConnectionsPool {
 			return false;
 		}
 		if (mapConnections.size() == connectionsPoolLimit) {
-			int idlongerUnusedConnectionNode = list.tail.connection.getId();
-			list.removeLongerUnusedConnectionFromList();
-			mapConnections.remove(idlongerUnusedConnectionNode);
+			int idOfLastNode = list.tail.connection.getId();
+			list.removeLastNode();
+			mapConnections.remove(idOfLastNode);
 		}
-		mapConnections.put(id, list.add(connection));
+		list.addNode(connection);
+		mapConnections.put(id, list.head);
 		return true;
 	}
 
@@ -89,9 +118,17 @@ public class ConnectionPoolImpl implements ConnectionsPool {
 			return null;
 		}
 		if (currentConnection.prev != null) {
-			list.changeLastActiveConnection(currentConnection);
+			list.setNewHeadNode(currentConnection);
 		}
 		return currentConnection.connection;
 	}
-
+	
+	public int[] getConnectionsIdList() {
+		Iterator it = list.iterator();
+		int res[] = new int[mapConnections.size()];
+		for(int i =0; i< res.length; i++) {
+			res[i]=(int) it.next();
+		}
+		return res;
+	}
 }

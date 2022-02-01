@@ -52,6 +52,14 @@ ConnectionsPool pool = new ConnectionPoolImpl(LIMIT);
 		assertNull(pool.getConnection(ID3));
 		assertEquals(connection, pool.getConnection(103));
 		assertEquals(conn5, pool.getConnection(ID5));
-	}
+		int[] idsExp = {5,103,2,101,4};	
+		assertArrayEquals(idsExp, pool.getConnectionsIdList());
+		pool.getConnection(ID2);
+		int[] idsExp2 = {2, 5,103 ,101,4};	
+		assertArrayEquals(idsExp2, pool.getConnectionsIdList());
 
+		 
+
+	}
+	
 }
